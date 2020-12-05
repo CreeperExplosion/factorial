@@ -17,26 +17,33 @@ var counter int
 
 func main() {
 
-	strNums := os.Args[1:]
-	var nums []int
+	args := os.Args[1:]
 
 	fmt.Printf("running with %d threads \n \n", runtime.NumCPU())
 
-	for _, str := range strNums {
+	num, err := strconv.Atoi(args[0])
 
-		num, err := strconv.Atoi(str)
-
-		if err != nil {
-			fmt.Println("(" + str + ") is not a string")
-			os.Exit(-1)
-		}
-
-		nums = append(nums, num)
+	if err != nil {
+		fmt.Printf("%d is not a number", num)
+		return
 	}
 
-	for _, num := range nums {
-		fmt.Println(fmt.Sprintf("\n\n%d! = %s \n", num, doFactorial(int64(num))))
+	fi, err := os.OpenFile(args[1], os.O_WRONLY|os.O_CREATE|os.O_APPEND, 777)
+
+	if err != nil {
+		fmt.Println(err)
+		return
 	}
+
+	out := doFactorial(int64(num))
+
+	_, err = fi.WriteString(out)
+
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
 }
 
 func doFactorial(num int64) string {
