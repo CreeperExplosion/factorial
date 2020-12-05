@@ -4,14 +4,21 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"runtime"
 	"strconv"
-	"sync"
 )
+
+type computationRange struct {
+	from int
+	to   int
+}
 
 func main() {
 
 	strNums := os.Args[1:]
 	var nums []int
+
+	fmt.Printf("running with %d threads \n \n", runtime.NumCPU())
 
 	for _, str := range strNums {
 
@@ -31,46 +38,35 @@ func main() {
 }
 
 func doFactorial(num int64) string {
+	var jobs []chan big.Int
 
-	var wg sync.WaitGroup
+	trds := int64(runtime.NumCPU())
 
-	a := big.NewInt(1)
-	b := big.NewInt(1)
-	c := big.NewInt(1)
-	d := big.NewInt(1)
+	if num < 100 {
+		trds = 1
+	}
 
-	facRange := int64(num / 4)
+	facrange := num / trds
 
-	wg.Add(1)
-	go func() {
-		a.MulRange(1, facRange)
+	for i := int64(0); i < trds; i++ {
+		job := make(chan big.Int, 1)
+		jobs = append(jobs, job)
 
-		wg.Done()
-	}()
+		go doPartialFac(job, (facrange*i)+1, facrange*(i+1))
+	}
 
-	wg.Add(1)
-	go func() {
-		b.MulRange(facRange+1, facRange*2)
-		wg.Done()
-	}()
-
-	wg.Add(1)
-	go func() {
-		c.MulRange((facRange*2)+1, facRange*3)
-		wg.Done()
-	}()
-
-	wg.Add(1)
-	go func() {
-		d.MulRange((facRange*3)+1, num)
-		wg.Done()
-	}()
-
-	wg.Wait()
 	result := big.NewInt(1)
-	result.Mul(a, b)
-	result.Mul(result, c)
-	result.Mul(result, d)
+	for _, job := range jobs {
+		res := <-job
+		close(job)
+		result.Mul(result, &res)
+	}
 
 	return result.String()
+}
+
+func doPartialFac(job chan<- big.Int, from, to int64) {
+	product := big.NewInt(1)
+	product.MulRange(from, to)
+	job <- *product
 }
